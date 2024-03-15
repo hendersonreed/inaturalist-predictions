@@ -65,15 +65,24 @@ Now, we need to build our neural network. To begin with, let's sketch out the er
 - I'd like a semi-generic tool, designed to train models on arbitrary CSV files that I can pass as a command-line argument.
 - It should produce a model file that can be shared, versioned, etc etc.
 - I should be able to use that model file with a second utility that produces N predictions of a CSV row, based on a fragment that I provide.
+    - to accommodate a few different interaction modes, we might actually need multiple different models. One to allow predicting based on latitude/longitude pairs (i.e. predict what mushrooms *might* show up at a particular location) and another to predict based on date and species name (i.e. where might a particular mushroom species be found on a particular date.) Those are the first applications that spring to mind for me, but there are other potentially useful ones (like working out what dates a particular species might crop up at a particular location that is known to be a good foraging spot.)
 
 Let's see how that might look in practice:
 
-`csv-train.py our-training-data.csv` produces `our-training-data_uuid.pb`.
+`csv-train.py our-training-data.csv` produces our model files.
 
-`csv-predict.py our-training-data_uuid.pb "example, _, row, data, _" 30` produces `our-training-data_predictions_uuid.csv`, which contains 30 predictions based on that example row, replacing the `_` characters with predicted results.
+`csv-predict.py model_file.h5 30 "2023-10-16, Cantherellus formosus"` produces a CSV file, which contains 30 predictions of locations that *Cantherellus formosus* might be found on October 16th.
 
-That seems ergonomic enough for our use-cases at the moment. We'll know a lot more once we have the tool and begin using it. One potential adjustment would be to create a single command with subcommands, like `git`. That will be a better solution once we have to start worrying about the distribution of this tool, but for now I don't want to worry about combining these discrete parts (this is not always the right decision, some tools *must* be designed as complete units from the start - that's not the case here.)
+That seems ergonomic enough for our use-cases at the moment. We'll know a lot more once we have the tool and begin using it. One potential adjustment would be to create a single command with subcommands, like `git`. That will be a better solution once we have to start worrying about the distribution of this tool, but for now I don't want to worry about combining these discrete parts (this is not always the right decision, some tools *must* be designed as complete units from the start - that's not the case here I'm fairly certain.)
 
 ## `csv-train.py`
 
-This is relatively straightforward:
+This is relatively straightforward. First we'll build the model that targets the latitude/longitude pairs.
+
+We need to do a bit of data processing to turn our data into something that a model can be trained on:
+
+- We read the CSV file with `pandas` and turn the `latitude` and `longitude` columns into a tuple and make that our target column.
+- `observed_on` comes to us as a string, so we'll convert it to a datetime object with the builtin `pandas.to_datetime` function.
+- the `species_guess` items are categorical data, so we'll use scikit-learn's OneHotEncoder.
+
+And... the OOM-killer decided our process was taking up too much memory and killed the process. So, perhaps some optimization is needed, or I need beefier harware (I guess I am just using my 7-year-old Dell XPS 13, so maybe that's only fair.)
